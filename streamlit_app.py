@@ -15,10 +15,11 @@ if "user_id" not in st.session_state:
 # ---------------- AUTH ----------------
 def login():
     st.subheader("Login")
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
 
-    if st.button("Login"):
+    u = st.text_input("Username", key="login_username")
+    p = st.text_input("Password", type="password", key="login_password")
+
+    if st.button("Login", key="login_btn"):
         user = db.execute(
             "SELECT * FROM users WHERE username=? AND password=?",
             (u, p)
@@ -34,10 +35,11 @@ def login():
 
 def register():
     st.subheader("Register")
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
 
-    if st.button("Register"):
+    u = st.text_input("Username", key="register_username")
+    p = st.text_input("Password", type="password", key="register_password")
+
+    if st.button("Register", key="register_btn"):
         db.execute(
             "INSERT INTO users (username, password) VALUES (?,?)",
             (u, p)
