@@ -1,11 +1,58 @@
 import streamlit as st
 import sqlite3
 
+# ---------------- CONFIG ----------------
+st.set_page_config(page_title="Online Learning App", page_icon="📚")
+
 # ---------------- DB ----------------
 def get_db():
     return sqlite3.connect("database.db", check_same_thread=False)
 
 db = get_db()
+
+def init_db():
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    """)
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            fee INTEGER
+        )
+    """)
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS enrollments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            course_id INTEGER,
+            payment_status TEXT,
+            completion_status TEXT
+        )
+    """)
+    db.commit()
+
+def seed_courses():
+    count = db.execute("SELECT COUNT(*) FROM courses").fetchone()[0]
+    if count == 0:
+        db.executemany(
+            "INSERT INTO courses (name, fee) VALUES (?,?)",
+            [
+                ("Python Basics", 999),
+                ("Machine Learning", 1999),
+                ("Web Development", 1499),
+            ]
+        )
+        db.commit()
+
+init_db()
+seed_courses()
 
 # ---------------- SESSION ----------------
 if "user_id" not in st.session_state:
@@ -14,7 +61,7 @@ if "user_id" not in st.session_state:
 
 # ---------------- AUTH ----------------
 def login():
-    st.subheader("Login")
+    st.subheader("🔐 Login")
 
     u = st.text_input("Username", key="login_username")
     p = st.text_input("Password", type="password", key="login_password")
@@ -28,36 +75,29 @@ def login():
         if user:
             st.session_state.user_id = user[0]
             st.session_state.username = user[1]
-            st.success("Logged in successfully")
+            st.success("Login successful")
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid username or password")
 
 def register():
-    st.subheader("Register")
+    st.subheader("📝 Register")
 
     u = st.text_input("Username", key="register_username")
     p = st.text_input("Password", type="password", key="register_password")
 
     if st.button("Register", key="register_btn"):
-        db.execute(
-            "INSERT INTO users (username, password) VALUES (?,?)",
-            (u, p)
-        )
-        db.commit()
-        st.success("Registered successfully. Please login.")
+        try:
+            db.execute(
+                "INSERT INTO users (username, password) VALUES (?,?)",
+                (u, p)
+            )
+            db.commit()
+            st.success("Registration successful. Please login.")
+        except sqlite3.IntegrityError:
+            st.error("Username already exists")
 
 # ---------------- COURSES ----------------
-def show_courses():
-    st.subheader("Available Courses")
-
-    courses = db.execute("SELECT * FROM courses").fetchall()
-
-    for c in courses:
-        st.markdown(f"### {c[1]} — ₹{c[2]}")
-        if st.button("Enroll", key=f"enroll_{c[0]}"):
-            enroll(c[0])
-
 def enroll(course_id):
     existing = db.execute(
         "SELECT * FROM enrollments WHERE user_id=? AND course_id=?",
@@ -69,17 +109,27 @@ def enroll(course_id):
         return
 
     db.execute(
-        """INSERT INTO enrollments 
-        (user_id, course_id, payment_status, completion_status)
-        VALUES (?,?,?,?)""",
+        """INSERT INTO enrollments
+           (user_id, course_id, payment_status, completion_status)
+           VALUES (?,?,?,?)""",
         (st.session_state.user_id, course_id, "Pending", "Not Completed")
     )
     db.commit()
     st.success("Enrollment successful")
 
+def show_courses():
+    st.subheader("📚 Available Courses")
+
+    courses = db.execute("SELECT * FROM courses").fetchall()
+
+    for c in courses:
+        st.markdown(f"### {c[1]} — ₹{c[2]}")
+        if st.button("Enroll", key=f"enroll_{c[0]}"):
+            enroll(c[0])
+
 # ---------------- MY COURSES ----------------
 def my_courses():
-    st.subheader("My Courses")
+    st.subheader("🎓 My Courses")
 
     rows = db.execute("""
         SELECT courses.name, enrollments.payment_status,
@@ -90,11 +140,15 @@ def my_courses():
         WHERE enrollments.user_id=?
     """, (st.session_state.user_id,)).fetchall()
 
+    if not rows:
+        st.info("No courses enrolled yet")
+        return
+
     for r in rows:
         st.markdown(f"""
         **{r[0]}**  
         💰 Payment: {r[1]}  
-        🎓 Status: {r[2]}  
+        📘 Status: {r[2]}  
         """)
 
         col1, col2, col3 = st.columns(3)
@@ -127,12 +181,13 @@ def certificate(course_name):
     st.markdown(
         f"""
         ---
-        ## Certificate of Completion  
+        ## Certificate of Completion
 
         This certifies that  
         **{st.session_state.username}**  
+
         has successfully completed the course  
-        **{course_name}**  
+        **{course_name}**
 
         ---
         """
@@ -145,7 +200,7 @@ def logout():
     st.rerun()
 
 # ---------------- UI ----------------
-st.title("📚 Course Enrollment System")
+st.title("📖 Online Learning Platform")
 
 if st.session_state.user_id is None:
     tab1, tab2 = st.tabs(["Login", "Register"])
@@ -155,6 +210,7 @@ if st.session_state.user_id is None:
         register()
 else:
     st.sidebar.success(f"Welcome {st.session_state.username}")
+
     if st.sidebar.button("Logout"):
         logout()
 
