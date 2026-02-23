@@ -76,13 +76,16 @@ if "user_id" not in st.session_state:
 def login():
     st.subheader("🔐 Login")
 
-    role = st.radio("Login as", ["User", "Admin"])
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
+    role = st.radio("Login as", ["User", "Admin"], key="login_role")
+    u = st.text_input("Username", key="login_username")
+    p = st.text_input("Password", type="password", key="login_password")
 
-    if st.button("Login"):
+    if st.button("Login", key="login_btn"):
         if role == "User":
-            user = db.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p)).fetchone()
+            user = db.execute(
+                "SELECT * FROM users WHERE username=? AND password=?",
+                (u, p)
+            ).fetchone()
             if user:
                 st.session_state.user_id = user[0]
                 st.session_state.username = user[1]
@@ -91,7 +94,10 @@ def login():
             else:
                 st.error("Invalid user credentials")
         else:
-            admin = db.execute("SELECT * FROM admins WHERE username=? AND password=?", (u, p)).fetchone()
+            admin = db.execute(
+                "SELECT * FROM admins WHERE username=? AND password=?",
+                (u, p)
+            ).fetchone()
             if admin:
                 st.session_state.user_id = admin[0]
                 st.session_state.username = admin[1]
@@ -100,14 +106,19 @@ def login():
             else:
                 st.error("Invalid admin credentials")
 
+
 def register():
     st.subheader("📝 Register")
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
 
-    if st.button("Register"):
+    u = st.text_input("Username", key="reg_username")
+    p = st.text_input("Password", type="password", key="reg_password")
+
+    if st.button("Register", key="register_btn"):
         try:
-            db.execute("INSERT INTO users (username,password) VALUES (?,?)", (u, p))
+            db.execute(
+                "INSERT INTO users (username,password) VALUES (?,?)",
+                (u, p)
+            )
             db.commit()
             st.success("Registration successful. Please login.")
         except:
